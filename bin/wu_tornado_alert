@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+require 'wu_tornado_alert'
+
+configs = YAML.load_file('config.yml')
+logger = Logger.new(STDOUT)
+logger.level = configs['log_level']
+
+options = { zipcode: nil }
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: wu_tornado_alert [options]'
+
+  opts.on('-c FILENAME', '--config-file FILENAME', 'path to config file') do |config|
+    options[:config] = config
+  end
+
+  opts.on('-V', '--version', 'Show Version') do |version|
+    options[:version] = version
+  end
+
+  opts.on('-h', '--help', 'Displays Help') do
+    puts opts
+    exit
+  end
+end
+
+parser.parse!
+
+abort('Please specify a config file.') unless options[:config]
+
+WuTornadoAlert::TornadoAlert.getdata if options[:config]
+
+
+if options[:version]
+  puts "Ruby Version: #{RUBY_VERSION}-p#{RUBY_PATCHLEVEL}"
+  spec = Gem::Specification.load('wu_tornado_alert.gemspec')
+  puts "wu_tornado_alert Version: #{spec.version}"
+end
