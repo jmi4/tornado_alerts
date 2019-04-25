@@ -1,6 +1,6 @@
 # External libs
 require 'rubygems'
-require 'wunderground'
+require 'darksky'
 require 'logger'
 require 'yaml'
 require 'optparse'
