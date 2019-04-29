@@ -7,4 +7,4 @@ require 'optparse'
 require 'json'
 
 # Internal libs
-require 'wu_tornado_alert/tornado_alerts'
+require './lib/tornado_alert/tornado_alerts'
