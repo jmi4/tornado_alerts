@@ -4,6 +4,8 @@ require 'logger'
 require 'yaml'
 require 'optparse'
 require 'json'
+require 'typhoeus'
+require 'date'
 
 # Internal libs
 require './lib/tornado_alert/tornado_alerts'

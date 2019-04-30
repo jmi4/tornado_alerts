@@ -6,7 +6,7 @@ module DSTornadoAlert
     @logger.level = @configs['log_level']
 
     def self.forecast
-      #@logger.debug('forcast has been called')
+      # @logger.debug('forcast has been called')
       response = Typhoeus::Request.get("#{@configs['api_url']}/forecast/#{@configs['api_key']}/#{@configs['lat']},#{@configs['long']}"'?units=us&exclude=daily,minutely,hourly,daily,currently,flags')
       JSON.parse(response.body) if response.code == 200
     end
@@ -16,11 +16,16 @@ module DSTornadoAlert
       alert_data = forecast
       # @logger.debug(alert_data.inspect)
       alerts = alert_data['alerts']
-      alert_list = []
+      alert_list = {}
       alerts.each do |lert|
-        alert_list.push lert['title']
+        alert_list[lert['title']] = convert_from_epoch(lert['expires'])
       end
+      @logger.debug("Retieve alerts output: #{alert_list}")
       alert_list
+    end
+
+    def self.convert_from_epoch(epoch_time)
+      Time.at(epoch_time)
     end
     # TODO: Find a way to check the time of the warning
     # TODO: Find a way to only need to call the API once for all checks.
@@ -31,14 +36,14 @@ module DSTornadoAlert
     def self.tornado_check
       @logger.debug('tornado has been called')
       alerts = retrieve_alerts
-      alerts.each do |v|
-        if v =~ /tornado/i
-          puts 'Tornado warning' if v =~ /warning/i
+      @logger.debug("Alerts in tornado check: #{alerts.inspect}")
+      alerts.each do |k, v|
+        if k =~ /flood/i
+          puts "Tornado warning ending at: #{v}" if k =~ /warning/i
         else
           puts 'no tornado'
         end
       end
     end
-
   end
 end
