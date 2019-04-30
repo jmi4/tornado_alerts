@@ -8,7 +8,7 @@ describe 'DSTornadoAlert::TornadoAlert' do
 
   context '#forecast' do
     it 'should return a valid weather warning alert' do
-      VCR.use_cassette('forecast', record: :once) do
+      VCR.use_cassette('forecast', record: :once, match_requests_on: [:body]) do
         alerts = DSTornadoAlert::TornadoAlert.forecast
         expect(alerts['title']).to eq('Tornado Warning')
       end

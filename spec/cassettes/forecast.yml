@@ -2,7 +2,7 @@
 http_interactions:
 - request:
     method: get
-    uri: https://api.darksky.net/forecast/e75759c3b066d4ede5ec13176fd07d0f/38.8846,-94.4971?units=us&exclude=daily,minutely,hourly,daily,currently,flags
+    uri: https://api.darksky.net/forecast/you_own_api_keys/38.8846,-94.4971?units=us&exclude=daily,minutely,hourly,daily,currently,flags
     body:
       encoding: US-ASCII
       string: ''
@@ -39,6 +39,6 @@ http_interactions:
       string: '{"title":"Tornado Warning","regions":["Bates","Carroll","Cass","Chariton","Clay","Cooper","Henry","Howard","Jackson","Johnson","Lafayette","Pettis","Platte","Randolph","Ray","Saline"],"severity":"warning","time":1556604000,"expires":1556798400,"description":"There is a tornado outside, go inside now","uri":"https://alerts.weather.gov/cap/wwacapget.php?x=MO125CF35C4650.FlashFloodWatch.125CF7B4EA40MO.EAXFFAEAX.fc5233a1f17280c8facb2ae9c9becf12"}'
     http_version: '1.1'
     adapter_metadata:
-      effective_url: https://api.darksky.net/forecast/e75759c3b066d4ede5ec13176fd07d0f/38.8846,-94.4971?units=us&exclude=daily,minutely,hourly,daily,currently,flags
+      effective_url: https://api.darksky.net/forecast/you_own_api_keys/38.8846,-94.4971?units=us&exclude=daily,minutely,hourly,daily,currently,flags
   recorded_at: Tue, 30 Apr 2019 01:20:10 GMT
 recorded_with: VCR 4.0.0

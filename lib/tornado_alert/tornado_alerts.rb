@@ -25,7 +25,7 @@ module DSTornadoAlert
     end
 
     def self.convert_from_epoch(epoch_time)
-      Time.at(epoch_time)
+      Time.at(epoch_time).to_s
     end
     # TODO: Find a way to check the time of the warning
     # TODO: Find a way to only need to call the API once for all checks.
