@@ -6,7 +6,7 @@ module DSTornadoAlert
     @logger.level = @configs['log_level']
 
     def self.forecast
-      @logger.debug('forcast has been called')
+      #@logger.debug('forcast has been called')
       response = Typhoeus::Request.get("#{@configs['api_url']}/forecast/#{@configs['api_key']}/#{@configs['lat']},#{@configs['long']}"'?units=us&exclude=daily,minutely,hourly,daily,currently,flags')
       JSON.parse(response.body) if response.code == 200
     end
