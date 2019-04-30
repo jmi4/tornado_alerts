@@ -11,9 +11,7 @@ This is a gem to collect data about your location alert when tornados are in you
 
 #### To build, install and run each time:
 
-`gem build wu_data.gemspec; gem install ./wu_data-0.0.0.gem; wu_data -c config.yml`
+`rake install:local`
 
 ### Resources ###
-[Wunderground API](https://www.wunderground.com/weather/api/d/docs?d=data/alerts&MR=1)
-[Wunderground API Wrapper](https://github.com/wnadeau/wunderground)
-
+[DarkSky API](https://darksky.net/dev/docs#response-format)
