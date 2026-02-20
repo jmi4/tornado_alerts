@@ -1,7 +1,7 @@
 # Project Spec: Calm Tornado Alert Speaker App
-**Version:** 1.0  
-**Date:** February 2025  
-**Previous Version:** 1.0  
+**Version:** 1.1
+**Date:** February 2026
+**Previous Version:** 1.0
 **Goal:**  
 Build a lightweight, containerized service that monitors US tornado warnings and reads them aloud in a calm, soothing voice. No loud alarms or jarring sounds—just a peaceful, gentle announcement. Designed to eventually run on a Raspberry Pi (or any Linux device) with a speaker, but focus on software first. Runs in Docker for portability.
 
@@ -10,6 +10,7 @@ Build a lightweight, containerized service that monitors US tornado warnings and
 - Container: Docker + Dockerfile (prefer multi-stage build for small size)
 - Weather data source: NOAA National Weather Service API (public, free, no key required for basic usage)
 - Text-to-Speech: Google Cloud Text-to-Speech (preferred for free tier and natural calm voices) **OR** ElevenLabs (if user prefers ultra-calm / custom voices)
+  - ElevenLabs minimum required API key permissions: **speech** (Text to Speech) and **voices** (Voices). All other permission scopes (Music, Dubbing, Voice Design, Studio, etc.) should be left disabled. A monthly character limit is recommended to cap costs.
 - Audio playback: Use `mpg123` or `aplay` installed in the container or assumed on host
 - Configuration: `.env` file for API keys, selected voice, volume level, location, etc.
 - Logging: Console + simple file logging (optional rotation)

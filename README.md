@@ -51,8 +51,20 @@ cd tornado_alerts
 #### Option B — ElevenLabs
 
 1. Sign up at [elevenlabs.io](https://elevenlabs.io).
-2. Go to **Profile → API Key** and copy your key.
-3. Browse the voice library to find a calm, low-energy voice and copy its **Voice ID**.
+2. Go to **Developers** in the left sidebar, then select the **API Keys** tab.
+3. Click **Create API key** and give it a name (e.g., `tornado-alert`).
+4. When prompted to set permissions, enable **only the following** (minimum required):
+
+   | Permission | Why it's needed |
+   | --- | --- |
+   | **speech** (Text to Speech) | Calls `POST /v1/text-to-speech/{voice_id}` to generate audio |
+   | **voices** (Voices) | Required to resolve and use voice IDs for synthesis |
+
+   All other permissions (Music, Dubbing, Voice Design, Studio, etc.) can be left **disabled**.
+
+5. Optionally set a **monthly character limit** to cap costs — the startup test message plus a typical tornado warning announcement is under 500 characters.
+6. Copy the API key.
+7. Find your Voice ID: go to [elevenlabs.io/voice-library](https://elevenlabs.io/voice-library), click a calm/neutral voice, and copy the **Voice ID** from its detail page (or from the URL).
 
 ### 3. Configure your environment
 
