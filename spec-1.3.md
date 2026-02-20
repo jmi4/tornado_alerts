@@ -1,7 +1,7 @@
 # Project Spec: Calm Tornado Alert Speaker App
-**Version:** 1.1
+**Version:** 1.3
 **Date:** February 2026
-**Previous Version:** 1.0
+**Previous Version:** 1.2
 **Goal:**  
 Build a lightweight, containerized service that monitors US tornado warnings and reads them aloud in a calm, soothing voice. No loud alarms or jarring sounds—just a peaceful, gentle announcement. Designed to eventually run on a Raspberry Pi (or any Linux device) with a speaker, but focus on software first. Runs in Docker for portability.
 
@@ -10,7 +10,11 @@ Build a lightweight, containerized service that monitors US tornado warnings and
 - Container: Docker + Dockerfile (prefer multi-stage build for small size)
 - Weather data source: NOAA National Weather Service API (public, free, no key required for basic usage)
 - Text-to-Speech: Google Cloud Text-to-Speech (preferred for free tier and natural calm voices) **OR** ElevenLabs (if user prefers ultra-calm / custom voices)
-  - ElevenLabs minimum required API key permissions: **speech** (Text to Speech) and **voices** (Voices). All other permission scopes (Music, Dubbing, Voice Design, Studio, etc.) should be left disabled. A monthly character limit is recommended to cap costs.
+  - ElevenLabs minimum required API key permissions:
+    - **Text to Speech**: set to **access** (the only non-disabled option)
+    - **Voices**: set to **read** (minimum; do not use write unless managing voices)
+    - All other permission scopes (Music, Dubbing, Voice Design, Studio, etc.) must be set to **no access**
+    - A monthly character limit is recommended to cap costs
 - Audio playback: Use `mpg123` or `aplay` installed in the container or assumed on host
 - Configuration: `.env` file for API keys, selected voice, volume level, location, etc.
 - Logging: Console + simple file logging (optional rotation)
@@ -81,18 +85,41 @@ n/a
 - The AI should generate this initial entry based on v1.0 features.  
 - In future versions, the changelog must be updated with new Added/Changed/Fixed/Removed sections.
 
+## Pre-Push Verification (required before every push to GitHub)
+
+The following checks must pass locally before any commit is pushed to the remote repository:
+
+1. **Docker build succeeds**
+
+   ```bash
+   docker build -t calm-tornado-alert .
+   ```
+
+   The build must complete with no errors. A failed build must never be pushed.
+
+2. **Container starts cleanly**
+
+   ```bash
+   docker run --rm --env-file .env calm-tornado-alert
+   ```
+
+   The startup log must include the test message line and no fatal errors before the first poll.
+
+3. **`package-lock.json` is committed** — Run `npm install` once locally (requires Node.js 20+) to generate `package-lock.json`, then commit it alongside any dependency changes. This file must be present in the repository so the Docker build can switch to `npm ci` for reproducible installs.
+
 ## Acceptance Criteria
-- Docker image builds successfully  
-- Runs with: `docker run -d --env-file .env calm-tornado-alert`  
-- Speaks test message on first start  
-- Remains silent when no active tornado warnings  
-- Speaks new warnings in calm voice when they appear  
-- No audio distortion or overly loud output  
-- No crashes on temporary network issues  
-- At least 3 unit tests (e.g., polling logic, message generation, deduplication)  
-- Code follows ESLint + Prettier rules  
-- Every function has JSDoc comments  
-- `README.md` is complete, clear, and beginner-friendly  
+
+- Docker image builds successfully
+- Runs with: `docker run -d --env-file .env calm-tornado-alert`
+- Speaks test message on first start
+- Remains silent when no active tornado warnings
+- Speaks new warnings in calm voice when they appear
+- No audio distortion or overly loud output
+- No crashes on temporary network issues
+- At least 3 unit tests (e.g., polling logic, message generation, deduplication)
+- Code follows ESLint + Prettier rules
+- Every function has JSDoc comments
+- `README.md` is complete, clear, and beginner-friendly
 - `CHANGELOG.md` exists and follows the Keep a Changelog format with initial v1.0 entry
 
 ## Constraints & Guardrails

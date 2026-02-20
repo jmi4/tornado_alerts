@@ -3,11 +3,16 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-# Copy manifests first to leverage layer caching
+# Copy manifests first to leverage layer caching.
+# If package-lock.json is committed to the repo it will be included here,
+# which is recommended for fully reproducible builds.
 COPY package*.json ./
 
-# Install only production dependencies (no devDependencies)
-RUN npm ci --omit=dev
+# Install only production dependencies (no devDependencies).
+# Using `npm install` rather than `npm ci` so the build succeeds whether or
+# not a package-lock.json is present in the repo. Once a lockfile is
+# committed, switch this to `npm ci --omit=dev` for stricter reproducibility.
+RUN npm install --omit=dev
 
 
 # ── Stage 2: Final production image ───────────────────────────────────────────
