@@ -20,7 +20,7 @@ A lightweight, containerized service that monitors US tornado warnings and reads
 ## Prerequisites
 
 | Requirement | Version / Notes |
-|---|---|
+| --- | --- |
 | Node.js | 20 or later (only needed for local dev/testing) |
 | Docker | Any recent version |
 | Google Cloud account | For TTS API key (free tier: 1M chars/month) |
@@ -55,12 +55,12 @@ cd tornado_alerts
 3. Click **Create API key** and give it a name (e.g., `tornado-alert`).
 4. When prompted to set permissions, enable **only the following** (minimum required):
 
-   | Permission | Why it's needed |
-   | --- | --- |
-   | **speech** (Text to Speech) | Calls `POST /v1/text-to-speech/{voice_id}` to generate audio |
-   | **voices** (Voices) | Required to resolve and use voice IDs for synthesis |
+   | Permission | Setting | Why |
+   | --- | --- | --- |
+   | **Text to Speech** | **access** | Calls `POST /v1/text-to-speech/{voice_id}` to generate audio |
+   | **Voices** | **read** | Needed to resolve and use voice IDs (minimum; do not use write) |
 
-   All other permissions (Music, Dubbing, Voice Design, Studio, etc.) can be left **disabled**.
+   Set everything else (Music, Dubbing, Voice Design, Studio, etc.) to **no access**.
 
 5. Optionally set a **monthly character limit** to cap costs — the startup test message plus a typical tornado warning announcement is under 500 characters.
 6. Copy the API key.
@@ -183,6 +183,7 @@ Or set `POLL_INTERVAL_MS=5000` in your `.env` to poll very frequently during dev
 ## Running on a Raspberry Pi
 
 1. Install Docker on your Pi:
+
    ```bash
    curl -fsSL https://get.docker.com | sh
    sudo usermod -aG docker $USER
@@ -191,6 +192,7 @@ Or set `POLL_INTERVAL_MS=5000` in your `.env` to poll very frequently during dev
 2. Clone, configure `.env`, and build as described above. The `node:20-alpine` base image supports ARM (arm64 / armv7).
 
 3. Enable audio passthrough in `docker-compose.yml` by uncommenting:
+
    ```yaml
    devices:
      - /dev/snd:/dev/snd
@@ -199,6 +201,7 @@ Or set `POLL_INTERVAL_MS=5000` in your `.env` to poll very frequently during dev
    ```
 
 4. Make sure your Pi's audio output is set correctly:
+
    ```bash
    # List available output devices
    aplay -l
@@ -207,11 +210,13 @@ Or set `POLL_INTERVAL_MS=5000` in your `.env` to poll very frequently during dev
    ```
 
 5. Start the service:
+
    ```bash
    docker compose up -d
    ```
 
 6. Check the logs:
+
    ```bash
    docker compose logs -f
    ```
@@ -230,23 +235,27 @@ npm run format    # Prettier auto-format
 
 ## Troubleshooting
 
-**Audio is not playing**
+### Audio is not playing
+
 - On Linux: make sure `/dev/snd` is passed to the container (see `docker-compose.yml`).
 - On macOS: run without Docker (`npm start`) — Docker Desktop can't access Mac audio.
 - Check that `mpg123` works in the container: `docker exec -it calm-tornado-alert mpg123 --version`
 - Try setting `VOLUME=80` temporarily to rule out a volume issue.
 
-**TTS API errors**
+### TTS API errors
+
 - Double-check your API key is correct and has no extra whitespace in `.env`.
 - Ensure the Cloud Text-to-Speech API is enabled in your Google Cloud project.
 - Check for quota limits in the Google Cloud Console.
 
-**No alerts being spoken (even during a warning)**
+### No alerts being spoken (even during a warning)
+
 - Confirm `ALERT_STATE` is a valid two-letter US state code.
 - Verify the NWS API is returning data: `curl "https://api.weather.gov/alerts/active?area=KY&event=Tornado%20Warning&status=actual"`
 - Check `./data/spoken-alerts.json` — delete it to reset deduplication if needed.
 
-**Container exits immediately**
+### Container exits immediately
+
 - Run `docker logs calm-tornado-alert` to see the error.
 - Make sure `.env` exists and `GOOGLE_API_KEY` (or `ELEVENLABS_API_KEY`) is set.
 
