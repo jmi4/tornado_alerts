@@ -154,12 +154,44 @@ npm install
 npm test
 ```
 
-The test suite uses Node's built-in `node:test` module (no extra packages needed) and covers:
+The test suite uses **Vitest** and covers 119 tests across 7 test files:
 
-- Alert message generation and calm tone
-- Tornado Warning filtering from mixed NWS event types
-- Deduplication logic and JSON round-trip persistence
-- NWS URL construction and exponential backoff calculation
+- Alert message generation, calm tone assertions, and area interpolation
+- Tornado Warning filtering from mixed NWS event types and malformed input
+- Deduplication logic, JSON round-trip persistence, and corruption recovery
+- NWS URL construction, exponential backoff calculation, and retry behavior
+- Google TTS and ElevenLabs request construction (including calm voice param assertions)
+- Audio player invocation (mpg123 and aplay), volume flags, and error handling
+- Integration: full poll cycle, rate limiting, startup flow, and graceful shutdown
+
+### Run with coverage report
+
+```bash
+npm run test:coverage
+```
+
+Example output:
+
+```text
+ Test Files  7 passed (7)
+      Tests  119 passed (119)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|
+File               | % Stmts | % Branch | % Funcs | % Lines |
+-------------------|---------|----------|---------|---------|
+All files          |   96.82 |    93.75 |   96.15 |   96.82 |
+ alertProcessor.js |   96.49 |    88.88 |     100 |   96.49 |
+ audioPlayer.js    |     100 |      100 |     100 |     100 |
+ deduplication.js  |   96.66 |    88.88 |     100 |   96.66 |
+ index.js          |    93.7 |    85.71 |     100 |    93.7  |
+ logger.js         |     100 |      100 |     100 |     100 |
+ poller.js         |   94.33 |      100 |      50 |   94.33 |
+ tts.js            |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|
+```
+
+Coverage is enforced — builds fail if any core module falls below 85%.
 
 ### Simulate an alert manually
 

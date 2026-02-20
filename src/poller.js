@@ -19,10 +19,11 @@ function delay(ms) {
  * backoff (up to MAX_RETRIES attempts).
  *
  * @param {string} state - Two-letter US state code (e.g. "KY")
- * @param {number} [attempt=0] - Current retry attempt (used internally for recursion)
+ * @param {number} [attempt=0] - Current retry attempt (used internally)
+ * @param {(ms: number) => Promise<void>} [_delayFn=delay] - Delay function (injectable for tests)
  * @returns {Promise<import('./alertProcessor.js').AlertFeature[]>} Array of GeoJSON alert features
  */
-export async function fetchAlerts(state, attempt = 0) {
+export async function fetchAlerts(state, attempt = 0, _delayFn = delay) {
   const url = new URL(`${NWS_API_BASE}/alerts/active`);
   url.searchParams.set('area', state.toUpperCase());
   url.searchParams.set('event', 'Tornado Warning');
@@ -54,7 +55,7 @@ export async function fetchAlerts(state, attempt = 0) {
 
     const backoffMs = BASE_DELAY_MS * Math.pow(2, attempt);
     logger.warn(`Network error, retrying in ${backoffMs / 1000}s: ${err.message}`);
-    await delay(backoffMs);
-    return fetchAlerts(state, attempt + 1);
+    await _delayFn(backoffMs);
+    return fetchAlerts(state, attempt + 1, _delayFn);
   }
 }

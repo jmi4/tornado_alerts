@@ -1,15 +1,11 @@
 import 'dotenv/config';
+import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
 import { fetchAlerts } from './poller.js';
 import { filterTornadoWarnings, generateCalmMessage } from './alertProcessor.js';
 import { synthesizeSpeech } from './tts.js';
 import { playAudio } from './audioPlayer.js';
 import { loadSpokenAlerts, hasBeenSpoken, markAsSpoken } from './deduplication.js';
-
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '300000', 10); // 5 minutes
-const SPEECH_RATE_LIMIT_MS = parseInt(process.env.SPEECH_RATE_LIMIT_MS || '60000', 10); // 1 minute
-const STATE = process.env.ALERT_STATE || 'KY';
-const COUNTY = process.env.ALERT_COUNTY || 'Jefferson';
 
 /** @type {number} Timestamp of the last spoken message (used for rate limiting) */
 let lastSpeechTime = 0;
@@ -27,9 +23,10 @@ let pollTimer = null;
  * @param {string} message - The text to speak aloud
  * @returns {Promise<void>}
  */
-async function speak(message) {
+export async function speak(message) {
+  const rateLimit = parseInt(process.env.SPEECH_RATE_LIMIT_MS || '60000', 10);
   const now = Date.now();
-  if (now - lastSpeechTime < SPEECH_RATE_LIMIT_MS) {
+  if (now - lastSpeechTime < rateLimit) {
     logger.warn('Rate limit active — skipping speech to avoid annoyance');
     return;
   }
@@ -50,9 +47,11 @@ async function speak(message) {
  *
  * @returns {Promise<void>}
  */
-async function pollOnce() {
-  logger.info(`Polling NWS API for Tornado Warnings in ${COUNTY} County, ${STATE}`);
-  const features = await fetchAlerts(STATE);
+export async function pollOnce() {
+  const state = process.env.ALERT_STATE || 'KY';
+  const county = process.env.ALERT_COUNTY || 'Jefferson';
+  logger.info(`Polling NWS API for Tornado Warnings in ${county} County, ${state}`);
+  const features = await fetchAlerts(state);
   const warnings = filterTornadoWarnings(features);
 
   logger.info(`Found ${warnings.length} active Tornado Warning(s)`);
@@ -74,12 +73,14 @@ async function pollOnce() {
  * Starts the main polling loop. Calls pollOnce immediately, then schedules
  * the next poll after POLL_INTERVAL_MS unless shutdown has been requested.
  */
-function startPolling() {
+export function startPolling() {
+  const intervalMs = parseInt(process.env.POLL_INTERVAL_MS || '300000', 10);
+
   const schedulePoll = async () => {
     if (isShuttingDown) return;
     await pollOnce();
     if (!isShuttingDown) {
-      pollTimer = setTimeout(schedulePoll, POLL_INTERVAL_MS);
+      pollTimer = setTimeout(schedulePoll, intervalMs);
     }
   };
 
@@ -90,7 +91,7 @@ function startPolling() {
  * Handles SIGTERM and SIGINT signals for graceful shutdown.
  * Clears the active poll timer and exits the process cleanly.
  */
-async function shutdown() {
+export async function shutdown() {
   logger.info('Shutdown signal received — stopping gracefully');
   isShuttingDown = true;
   if (pollTimer) {
@@ -104,10 +105,15 @@ async function shutdown() {
  * Application entry point. Loads configuration, speaks a startup test message,
  * and begins the polling loop.
  */
-async function main() {
+export async function main() {
+  const state = process.env.ALERT_STATE || 'KY';
+  const county = process.env.ALERT_COUNTY || 'Jefferson';
+  const pollInterval = parseInt(process.env.POLL_INTERVAL_MS || '300000', 10);
+  const rateLimit = parseInt(process.env.SPEECH_RATE_LIMIT_MS || '60000', 10);
+
   logger.info('=== Calm Tornado Alert Speaker v1.0.0 ===');
-  logger.info(`Monitoring: ${COUNTY} County, ${STATE}`);
-  logger.info(`Poll interval: ${POLL_INTERVAL_MS / 1000}s | Speech rate limit: ${SPEECH_RATE_LIMIT_MS / 1000}s`);
+  logger.info(`Monitoring: ${county} County, ${state}`);
+  logger.info(`Poll interval: ${pollInterval / 1000}s | Speech rate limit: ${rateLimit / 1000}s`);
 
   loadSpokenAlerts();
 
@@ -120,7 +126,24 @@ async function main() {
   startPolling();
 }
 
-main().catch((err) => {
-  logger.error(`Fatal startup error: ${err.message}`);
-  process.exit(1);
-});
+/**
+ * Resets module-level rate limit and shutdown state. For use in tests only.
+ * @internal
+ */
+export function _resetRateLimit() {
+  lastSpeechTime = 0;
+  isShuttingDown = false;
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+}
+
+// Auto-run only when this file is executed directly (e.g. `node src/index.js`)
+// Not when imported by tests or other modules.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    logger.error(`Fatal startup error: ${err.message}`);
+    process.exit(1);
+  });
+}

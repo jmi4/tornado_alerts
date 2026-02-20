@@ -4,6 +4,7 @@ node_modules/
 *.wav
 logs/
 data/
+coverage/
 *.log
 .DS_Store
 npm-debug.log*

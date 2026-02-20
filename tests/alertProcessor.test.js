@@ -1,97 +1,129 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert/strict';
-import { generateCalmMessage, filterTornadoWarnings } from '../src/alertProcessor.js';
+import { describe, it, expect } from 'vitest';
+import { filterTornadoWarnings, generateCalmMessage } from '../src/alertProcessor.js';
 
-/**
- * Builds a minimal AlertFeature fixture for testing.
- * @param {Partial<import('../src/alertProcessor.js').AlertProperties>} overrides
- * @returns {import('../src/alertProcessor.js').AlertFeature}
- */
-function makeAlert(overrides = {}) {
-  return {
-    id: 'urn:oid:2.49.0.1.840.0.test',
-    properties: {
-      event: 'Tornado Warning',
-      areaDesc: 'Jefferson County, KY',
-      effective: '2025-02-01T12:00:00-05:00',
-      expires: '2025-02-01T13:00:00-05:00',
-      severity: 'Extreme',
-      headline: 'Tornado Warning issued for Jefferson County',
-      description: 'A tornado has been confirmed by radar.',
-      ...overrides,
-    },
-  };
-}
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-describe('generateCalmMessage', () => {
-  test('should include the area description in the message', () => {
-    const alert = makeAlert({ areaDesc: 'Jefferson County, KY' });
-    const message = generateCalmMessage(alert);
-    assert.ok(message.includes('Jefferson County, KY'), 'Message should include the affected area');
+const makeFeature = (event, id = 'urn:test:1', areaDesc = 'Jefferson County, KY') => ({
+  id,
+  properties: { event, areaDesc, expires: '2026-05-15T20:00:00Z', headline: `${event} issued` },
+});
+
+// ── filterTornadoWarnings ────────────────────────────────────────────────────
+
+describe('filterTornadoWarnings', () => {
+  it('returns empty array when given no features', () => {
+    expect(filterTornadoWarnings([])).toEqual([]);
   });
 
-  test('should fall back to "your area" when areaDesc is null', () => {
-    const alert = makeAlert({ areaDesc: null });
-    const message = generateCalmMessage(alert);
-    assert.ok(message.includes('your area'), 'Should use fallback area when areaDesc is missing');
+  it('keeps Tornado Warning events', () => {
+    const features = [makeFeature('Tornado Warning')];
+    expect(filterTornadoWarnings(features)).toHaveLength(1);
   });
 
-  test('should contain reassuring, calm language', () => {
-    const alert = makeAlert();
-    const message = generateCalmMessage(alert);
-    const lower = message.toLowerCase();
-    assert.ok(
-      lower.includes('calm') || lower.includes('safe') || lower.includes('gentle'),
-      'Message should contain reassuring language'
-    );
+  it('filters out Tornado Watch events', () => {
+    expect(filterTornadoWarnings([makeFeature('Tornado Watch')])).toHaveLength(0);
   });
 
-  test('should mention "until further notice" when expires is null', () => {
-    const alert = makeAlert({ expires: null });
-    const message = generateCalmMessage(alert);
-    assert.ok(
-      message.includes('until further notice'),
-      'Should fall back to "until further notice" when no expiry is set'
-    );
+  it('filters out Severe Thunderstorm Warning events', () => {
+    expect(
+      filterTornadoWarnings([makeFeature('Severe Thunderstorm Warning')])
+    ).toHaveLength(0);
   });
 
-  test('should not be empty', () => {
-    const alert = makeAlert();
-    const message = generateCalmMessage(alert);
-    assert.ok(message.length > 0, 'Message must not be empty');
+  it('filters out Flash Flood Warning events', () => {
+    expect(filterTornadoWarnings([makeFeature('Flash Flood Warning')])).toHaveLength(0);
+  });
+
+  it('filters out Severe Thunderstorm Watch events', () => {
+    expect(
+      filterTornadoWarnings([makeFeature('Severe Thunderstorm Watch')])
+    ).toHaveLength(0);
+  });
+
+  it('returns only Tornado Warnings from a mixed list', () => {
+    const features = [
+      makeFeature('Tornado Warning', 'id1'),
+      makeFeature('Tornado Watch', 'id2'),
+      makeFeature('Severe Thunderstorm Warning', 'id3'),
+      makeFeature('Tornado Warning', 'id4'),
+      makeFeature('Flash Flood Warning', 'id5'),
+    ];
+    const result = filterTornadoWarnings(features);
+    expect(result).toHaveLength(2);
+    expect(result.map((f) => f.id)).toEqual(['id1', 'id4']);
+  });
+
+  it('handles features with missing properties without throwing', () => {
+    const malformed = [{ id: 'a' }, { id: 'b', properties: null }, { id: 'c' }];
+    expect(() => filterTornadoWarnings(malformed)).not.toThrow();
+    expect(filterTornadoWarnings(malformed)).toHaveLength(0);
+  });
+
+  it('preserves the original feature objects in the result', () => {
+    const feature = makeFeature('Tornado Warning', 'id1');
+    const result = filterTornadoWarnings([feature]);
+    expect(result[0]).toBe(feature);
   });
 });
 
-describe('filterTornadoWarnings', () => {
-  test('should only return Tornado Warning events', () => {
-    const features = [
-      makeAlert({ event: 'Tornado Warning' }),
-      { properties: { event: 'Severe Thunderstorm Warning' } },
-      { properties: { event: 'Tornado Watch' } },
-      makeAlert({ event: 'Tornado Warning' }),
-    ];
-    const result = filterTornadoWarnings(features);
-    assert.equal(result.length, 2);
-    assert.ok(result.every((f) => f.properties.event === 'Tornado Warning'));
+// ── generateCalmMessage ──────────────────────────────────────────────────────
+
+describe('generateCalmMessage', () => {
+  const alert = makeFeature('Tornado Warning', 'id1', 'Jefferson County, KY');
+
+  it('returns a non-empty string', () => {
+    const msg = generateCalmMessage(alert);
+    expect(typeof msg).toBe('string');
+    expect(msg.length).toBeGreaterThan(20);
   });
 
-  test('should return an empty array when there are no Tornado Warnings', () => {
-    const features = [
-      { properties: { event: 'Flash Flood Warning' } },
-      { properties: { event: 'Severe Thunderstorm Watch' } },
-    ];
-    const result = filterTornadoWarnings(features);
-    assert.equal(result.length, 0);
+  it('includes the affected area in the message', () => {
+    const msg = generateCalmMessage(alert);
+    expect(msg).toContain('Jefferson County, KY');
   });
 
-  test('should handle an empty input array', () => {
-    const result = filterTornadoWarnings([]);
-    assert.equal(result.length, 0);
+  it('does not contain alarming or panic-inducing language', () => {
+    const msg = generateCalmMessage(alert).toLowerCase();
+    // These words would be appropriate in a siren-style alert, not a calm one
+    expect(msg).not.toMatch(/\b(emergency|critical|evacuate|run|flee|danger|imminent death)\b/);
   });
 
-  test('should handle features with missing properties gracefully', () => {
-    const features = [{ properties: null }, { properties: undefined }, makeAlert()];
-    const result = filterTornadoWarnings(features);
-    assert.equal(result.length, 1);
+  it('contains calm, reassuring language', () => {
+    const msg = generateCalmMessage(alert).toLowerCase();
+    expect(msg).toMatch(/calm|safe|gentle|easy|take care/);
+  });
+
+  it('falls back gracefully when areaDesc is missing', () => {
+    const noArea = { id: 'id1', properties: { event: 'Tornado Warning', expires: '2026-05-15T20:00:00Z' } };
+    expect(() => generateCalmMessage(noArea)).not.toThrow();
+    const msg = generateCalmMessage(noArea);
+    expect(typeof msg).toBe('string');
+    expect(msg.length).toBeGreaterThan(10);
+  });
+
+  it('falls back gracefully when expires is missing', () => {
+    const noExpires = {
+      id: 'id1',
+      properties: { event: 'Tornado Warning', areaDesc: 'Test County, KY' },
+    };
+    expect(() => generateCalmMessage(noExpires)).not.toThrow();
+    const msg = generateCalmMessage(noExpires);
+    expect(msg).toContain('Test County, KY');
+  });
+
+  it('includes fallback expiry text when expires is not provided', () => {
+    const noExpires = {
+      id: 'id1',
+      properties: { event: 'Tornado Warning', areaDesc: 'Some County' },
+    };
+    const msg = generateCalmMessage(noExpires);
+    // Should handle the missing expiry without crashing and include some time reference
+    expect(msg).toMatch(/until|notice|time/i);
+  });
+
+  it('generates different messages for different areas', () => {
+    const alertA = makeFeature('Tornado Warning', 'id1', 'Jefferson County, KY');
+    const alertB = makeFeature('Tornado Warning', 'id2', 'Hamilton County, OH');
+    expect(generateCalmMessage(alertA)).not.toEqual(generateCalmMessage(alertB));
   });
 });

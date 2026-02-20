@@ -2,8 +2,6 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { logger } from './logger.js';
 
-const DEDUP_FILE = process.env.DEDUP_FILE || './data/spoken-alerts.json';
-
 /**
  * In-memory set of alert IDs that have already been spoken.
  * @type {Set<string>}
@@ -15,9 +13,10 @@ let spokenAlertIds = new Set();
  * Failures are logged but do not throw, keeping the app alive.
  */
 function saveSpokenAlerts() {
+  const dedupFile = process.env.DEDUP_FILE || './data/spoken-alerts.json';
   try {
-    mkdirSync(dirname(DEDUP_FILE), { recursive: true });
-    writeFileSync(DEDUP_FILE, JSON.stringify([...spokenAlertIds]));
+    mkdirSync(dirname(dedupFile), { recursive: true });
+    writeFileSync(dedupFile, JSON.stringify([...spokenAlertIds]));
   } catch (err) {
     logger.warn(`Could not save deduplication data: ${err.message}`);
   }
@@ -25,13 +24,15 @@ function saveSpokenAlerts() {
 
 /**
  * Loads previously spoken alert IDs from disk into memory.
- * Safe to call on startup; silently starts fresh if no file exists.
+ * Safe to call on startup; silently starts fresh if no file exists or if the
+ * file contains invalid JSON.
  */
 export function loadSpokenAlerts() {
+  const dedupFile = process.env.DEDUP_FILE || './data/spoken-alerts.json';
   try {
-    const data = readFileSync(DEDUP_FILE, 'utf8');
+    const data = readFileSync(dedupFile, 'utf8');
     const ids = JSON.parse(data);
-    spokenAlertIds = new Set(ids);
+    spokenAlertIds = new Set(Array.isArray(ids) ? ids : []);
     logger.info(`Loaded ${spokenAlertIds.size} previously spoken alert ID(s) from disk`);
   } catch {
     logger.info('No existing deduplication data found — starting fresh');
@@ -54,4 +55,12 @@ export function hasBeenSpoken(alertId) {
 export function markAsSpoken(alertId) {
   spokenAlertIds.add(alertId);
   saveSpokenAlerts();
+}
+
+/**
+ * Resets in-memory state. For use in tests only.
+ * @internal
+ */
+export function _reset() {
+  spokenAlertIds = new Set();
 }

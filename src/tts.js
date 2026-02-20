@@ -1,38 +1,35 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { logger } from './logger.js';
 
-const TTS_PROVIDER = process.env.TTS_PROVIDER || 'google';
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const GOOGLE_VOICE = process.env.GOOGLE_VOICE || 'en-US-Wavenet-D';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
 const OUTPUT_PATH = './data/speech.mp3';
 
 /**
  * Synthesizes speech via the Google Cloud Text-to-Speech REST API.
- * Uses a calm male (Wavenet-D) or female (Neural2-F) voice by default.
+ * Uses a calm voice with a reduced speaking rate and lower pitch.
  * No npm SDK required — uses Node's built-in fetch.
  *
  * @param {string} text - The text to convert to speech
  * @returns {Promise<string>} Path to the saved MP3 file
  */
 async function synthesizeWithGoogle(text) {
-  if (!GOOGLE_API_KEY) {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
     throw new Error('GOOGLE_API_KEY is not set. Add it to your .env file.');
   }
 
-  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
+  const voice = process.env.GOOGLE_VOICE || 'en-US-Wavenet-D';
+  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
   const body = {
     input: { text },
     voice: {
       languageCode: 'en-US',
-      name: GOOGLE_VOICE,
+      name: voice,
     },
     audioConfig: {
       audioEncoding: 'MP3',
-      speakingRate: 0.85, // Slightly slower than normal for a calm feel
-      pitch: -2.0, // Lower pitch for a soothing tone
+      speakingRate: 0.85, // Slightly slower than normal for a calm feel (≤ 0.9 per spec)
+      pitch: -2.0, // Lower pitch for a soothing tone (≤ 0 per spec)
     },
   };
 
@@ -57,25 +54,27 @@ async function synthesizeWithGoogle(text) {
 
 /**
  * Synthesizes speech via the ElevenLabs TTS REST API.
- * Uses a low-energy, stable voice configuration for a calm, peaceful tone.
+ * Uses a high-stability, zero-style voice configuration for a calm, peaceful tone.
  *
  * @param {string} text - The text to convert to speech
  * @returns {Promise<string>} Path to the saved MP3 file
  */
 async function synthesizeWithElevenLabs(text) {
-  if (!ELEVENLABS_API_KEY) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
     throw new Error('ELEVENLABS_API_KEY is not set. Add it to your .env file.');
   }
 
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
 
   const body = {
     text,
     model_id: 'eleven_monolingual_v1',
     voice_settings: {
-      stability: 0.8, // High stability = more consistent, less dynamic
+      stability: 0.8, // High stability = consistent, calm delivery (≥ 0.7 per spec)
       similarity_boost: 0.6,
-      style: 0.0, // No extra expressiveness
+      style: 0.0, // No extra expressiveness — deliberately calm
       use_speaker_boost: false,
     },
   };
@@ -84,7 +83,7 @@ async function synthesizeWithElevenLabs(text) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'xi-api-key': ELEVENLABS_API_KEY,
+      'xi-api-key': apiKey,
     },
     body: JSON.stringify(body),
   });
@@ -109,9 +108,10 @@ async function synthesizeWithElevenLabs(text) {
  * @returns {Promise<string>} Path to the generated audio file
  */
 export async function synthesizeSpeech(text) {
-  logger.info(`Synthesizing speech via ${TTS_PROVIDER} TTS`);
+  const provider = process.env.TTS_PROVIDER || 'google';
+  logger.info(`Synthesizing speech via ${provider} TTS`);
 
-  if (TTS_PROVIDER === 'elevenlabs') {
+  if (provider === 'elevenlabs') {
     return synthesizeWithElevenLabs(text);
   }
 

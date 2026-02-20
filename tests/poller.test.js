@@ -1,74 +1,208 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fetchAlerts } from '../src/poller.js';
 
-/**
- * Tests for NWS poller URL construction and retry backoff logic.
- *
- * Network calls are not made in these tests; instead, we validate the
- * URL construction and backoff calculations that fetchAlerts() relies on.
- */
-describe('NWS API URL construction', () => {
-  test('should include the correct area parameter', () => {
-    const state = 'KY';
-    const url = new URL('https://api.weather.gov/alerts/active');
-    url.searchParams.set('area', state.toUpperCase());
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-    assert.equal(url.searchParams.get('area'), 'KY');
+const noDelay = () => Promise.resolve();
+
+function makeSuccessResponse(features = []) {
+  return {
+    ok: true,
+    json: () => Promise.resolve({ features }),
+  };
+}
+
+function makeErrorResponse(status = 500) {
+  return {
+    ok: false,
+    status,
+  };
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+// ── URL construction ─────────────────────────────────────────────────────────
+
+describe('fetchAlerts – URL construction', () => {
+  it('includes the correct NWS base URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const url = vi.mocked(fetch).mock.calls[0][0];
+    expect(url).toContain('api.weather.gov/alerts/active');
   });
 
-  test('should normalize lowercase state codes to uppercase', () => {
-    const state = 'ky';
-    const url = new URL('https://api.weather.gov/alerts/active');
-    url.searchParams.set('area', state.toUpperCase());
-
-    assert.equal(url.searchParams.get('area'), 'KY', 'State code must be uppercased');
+  it('includes the state code as the "area" query parameter', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const url = vi.mocked(fetch).mock.calls[0][0];
+    expect(url).toContain('area=KY');
   });
 
-  test('should include event and status query parameters', () => {
-    const url = new URL('https://api.weather.gov/alerts/active');
-    url.searchParams.set('area', 'KY');
-    url.searchParams.set('event', 'Tornado Warning');
-    url.searchParams.set('status', 'actual');
+  it('uppercases the state code in the URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('ky', 0, noDelay);
+    const url = vi.mocked(fetch).mock.calls[0][0];
+    expect(url).toContain('area=KY');
+    expect(url).not.toContain('area=ky');
+  });
 
-    assert.equal(url.searchParams.get('event'), 'Tornado Warning');
-    assert.equal(url.searchParams.get('status'), 'actual');
+  it('includes event=Tornado+Warning (or %20) in the URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const url = vi.mocked(fetch).mock.calls[0][0];
+    expect(url).toMatch(/event=Tornado[+%20]Warning/);
+  });
+
+  it('includes status=actual in the URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const url = vi.mocked(fetch).mock.calls[0][0];
+    expect(url).toContain('status=actual');
+  });
+
+  it('sends the correct Accept header', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const [, opts] = vi.mocked(fetch).mock.calls[0];
+    expect(opts.headers['Accept']).toBe('application/geo+json');
+  });
+
+  it('sends a User-Agent header identifying the app', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    await fetchAlerts('KY', 0, noDelay);
+    const [, opts] = vi.mocked(fetch).mock.calls[0];
+    expect(opts.headers['User-Agent']).toMatch(/calm-tornado-alert/);
   });
 });
 
-describe('exponential backoff calculation', () => {
-  const BASE_DELAY_MS = 5_000;
-  const MAX_RETRIES = 5;
+// ── Successful responses ──────────────────────────────────────────────────────
 
-  test('should double the delay with each retry attempt', () => {
-    const delays = Array.from({ length: MAX_RETRIES }, (_, i) =>
-      BASE_DELAY_MS * Math.pow(2, i)
-    );
-
-    assert.equal(delays[0], 5_000, 'First retry delay should be 5s');
-    assert.equal(delays[1], 10_000, 'Second retry delay should be 10s');
-    assert.equal(delays[2], 20_000, 'Third retry delay should be 20s');
-    assert.equal(delays[3], 40_000, 'Fourth retry delay should be 40s');
-    assert.equal(delays[4], 80_000, 'Fifth retry delay should be 80s');
+describe('fetchAlerts – successful responses', () => {
+  it('returns the features array from the NWS response', async () => {
+    const features = [{ id: 'urn:test:1', properties: { event: 'Tornado Warning' } }];
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse(features));
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(result).toEqual(features);
   });
 
-  test('should stop retrying after MAX_RETRIES attempts', () => {
-    let attempts = 0;
-    const shouldRetry = (attempt) => attempt < MAX_RETRIES;
-
-    while (shouldRetry(attempts)) {
-      attempts++;
-    }
-
-    assert.equal(attempts, MAX_RETRIES);
+  it('returns an empty array when the API returns no features', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse([]));
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(result).toEqual([]);
   });
 
-  test('should produce strictly increasing delays', () => {
-    const delays = Array.from({ length: MAX_RETRIES }, (_, i) =>
-      BASE_DELAY_MS * Math.pow(2, i)
-    );
+  it('handles a missing features key (returns empty array)', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}), // no "features" key
+    });
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(result).toEqual([]);
+  });
+});
+
+// ── Retry logic ───────────────────────────────────────────────────────────────
+
+describe('fetchAlerts – retry on failure', () => {
+  it('retries after a network error and returns features on second attempt', async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(makeSuccessResponse([{ id: 'urn:test:1' }]));
+
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(1);
+  });
+
+  it('retries up to 5 times before giving up', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('Persistent failure'));
+    await fetchAlerts('KY', 0, noDelay);
+    // 1 initial + 5 retries = 6 calls total (MAX_RETRIES = 5)
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(6);
+  });
+
+  it('returns an empty array after all retries are exhausted', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('Always fails'));
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(result).toEqual([]);
+  });
+
+  it('succeeds on the 5th retry (last allowed attempt)', async () => {
+    const features = [{ id: 'urn:test:5' }];
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('fail 1'))
+      .mockRejectedValueOnce(new Error('fail 2'))
+      .mockRejectedValueOnce(new Error('fail 3'))
+      .mockRejectedValueOnce(new Error('fail 4'))
+      .mockRejectedValueOnce(new Error('fail 5'))
+      .mockResolvedValueOnce(makeSuccessResponse(features));
+
+    const result = await fetchAlerts('KY', 0, noDelay);
+    expect(result).toEqual(features);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(6);
+  });
+
+  it('retries on HTTP error responses (non-2xx)', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeErrorResponse(503))
+      .mockResolvedValueOnce(makeSuccessResponse([]));
+
+    await fetchAlerts('KY', 0, noDelay);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── Exponential backoff ───────────────────────────────────────────────────────
+
+describe('fetchAlerts – exponential backoff calculation', () => {
+  it('uses exponential backoff delays: 5s, 10s, 20s, 40s, 80s for retries 0–4', async () => {
+    const delays = [];
+    const trackDelay = (ms) => {
+      delays.push(ms);
+      return Promise.resolve();
+    };
+
+    vi.mocked(fetch).mockRejectedValue(new Error('always fails'));
+
+    await fetchAlerts('KY', 0, trackDelay);
+
+    expect(delays).toEqual([5000, 10000, 20000, 40000, 80000]);
+  });
+
+  it('base delay is 5 seconds for the first retry', async () => {
+    const delays = [];
+    const trackDelay = (ms) => {
+      delays.push(ms);
+      return Promise.resolve();
+    };
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('fail'))
+      .mockResolvedValueOnce(makeSuccessResponse([]));
+
+    await fetchAlerts('KY', 0, trackDelay);
+    expect(delays[0]).toBe(5000);
+  });
+
+  it('doubles the delay on each successive retry', async () => {
+    const delays = [];
+    const trackDelay = (ms) => {
+      delays.push(ms);
+      return Promise.resolve();
+    };
+    vi.mocked(fetch).mockRejectedValue(new Error('fail'));
+
+    await fetchAlerts('KY', 0, trackDelay);
 
     for (let i = 1; i < delays.length; i++) {
-      assert.ok(delays[i] > delays[i - 1], `Delay at attempt ${i} should exceed previous`);
+      expect(delays[i]).toBe(delays[i - 1] * 2);
     }
   });
 });

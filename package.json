@@ -6,7 +6,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test tests/*.test.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
     "format": "prettier --write 'src/**/*.js' 'tests/**/*.js'"
   },
@@ -18,9 +20,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.2.0"
+    "prettier": "^3.2.0",
+    "vitest": "^3.0.0"
   },
   "keywords": ["tornado", "weather", "alerts", "text-to-speech", "noaa", "raspberry-pi"],
   "license": "MIT"
