@@ -1,5 +1,0 @@
-log_level: DEBUG
-api_key: your-own-api-key
-lat: 38.8846
-long: -94.4971
-api_url: https://api.darksky.net

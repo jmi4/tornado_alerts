@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  tornado-alert:
+    build: .
+    image: calm-tornado-alert:latest
+    container_name: calm-tornado-alert
+    env_file: .env
+    volumes:
+      # Persist logs and deduplication data across restarts
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+
+    # ── Audio hardware access (Linux / Raspberry Pi) ──────────────────────────
+    # Uncomment the section below to pass the system sound card into the
+    # container. Required on Raspberry Pi OS and most Linux desktops.
+    # On macOS, audio passthrough requires additional setup (see README).
+    #
+    # devices:
+    #   - /dev/snd:/dev/snd
+    # group_add:
+    #   - audio

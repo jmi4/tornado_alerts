@@ -1,0 +1,27 @@
+{
+  "name": "calm-tornado-alert",
+  "version": "1.0.0",
+  "description": "A calm, soothing tornado alert speaker that monitors NOAA NWS warnings and announces them in a peaceful voice.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test tests/*.test.js",
+    "lint": "eslint src tests",
+    "format": "prettier --write 'src/**/*.js' 'tests/**/*.js'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.0"
+  },
+  "keywords": ["tornado", "weather", "alerts", "text-to-speech", "noaa", "raspberry-pi"],
+  "license": "MIT"
+}
